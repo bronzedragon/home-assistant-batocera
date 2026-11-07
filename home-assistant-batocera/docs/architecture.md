@@ -1,24 +1,26 @@
-# Architecture (draft)
+# Architecture (v0.1.0)
 
-## Components
+- `api.py`: read-only EmulationStation API client using Home Assistant's aiohttp session.
+- `config_flow.py`: validates the local HTTP endpoint via `/caps`.
+- `coordinator.py`: 30-second poll of capabilities, idle status and running game; refresh `/systems` every 20 polls.
+- `sensor.py`: version, game/system counts, runtime state and current title/system.
+- `binary_sensor.py`: HTTP API connectivity, including offline/unavailable transitions.
 
-- Home Assistant custom integration, installed in `custom_components/batocera/`.
-- EmulationStation HTTP API on TCP 1234 for library discovery and gameplay actions (subject to version checks).
-- Wake-on-LAN for boot requests; SSH for orderly shutdown and reboot.
-- Optional MQTT event bridge for real-time state changes.
+The game list endpoint has been validated on Batocera 42, but is not yet surfaced as a UI browser. No per-ROM entity proliferation, credentials or write controls in v0.1.0.
 
-## Data model
+## Verified test environment
 
-- One HA device per Batocera host.
-- A small set of device-level entities for connectivity, current game/system and counts.
-- Game catalogue cached in memory, rather than one entity per game.
-- Action to launch a game by a validated identifier/path after confirmation of endpoint semantics.
+- Batocera 42o, HP EliteDesk 800 G3 SFF
+- Host LAN IP `10.8.76.244`, TCP 1234
+- `/caps` HTTP 200
+- `/systems` console metadata and game counts
+- `/systems/nes/games` game IDs, names and media paths
+- `/runningGame` HTTP 201 with `NO GAME RUNNING` while idle
+- `/isIdle` HTTP 200 with `[true]` while idle
 
-## Validation checklist
+## Future work
 
-- [ ] Verify `/caps` and version-specific available endpoints.
-- [ ] Verify `/systems` response schema.
-- [ ] Verify per-system games response and pagination/size.
-- [ ] Verify current game state and stop/launch semantics.
-- [ ] Verify host machine power-management commands.
-- [ ] Verify API authentication/network access expectations.
+- On-demand game library browse and artwork
+- Game launch/stop controls after API command testing
+- Wake-on-LAN and authenticated SSH system controls
+- Tests with a live Home Assistant installation

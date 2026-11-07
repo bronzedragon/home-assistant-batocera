@@ -1,3 +1,3 @@
-# Integration implementation pending
+# Batocera custom integration
 
-This directory is intentionally documentation-only until the Batocera API has been validated. Do not copy it into Home Assistant as an installed integration yet.
+Development preview v0.1.0. See the repository root README for installation and features.
