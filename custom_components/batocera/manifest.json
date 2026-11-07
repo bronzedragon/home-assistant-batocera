@@ -1,7 +1,7 @@
 {
   "domain": "batocera",
   "name": "Batocera Linux",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "documentation": "https://github.com/bronzedragon/home-assistant-batocera",
   "issue_tracker": "https://github.com/bronzedragon/home-assistant-batocera/issues",
   "codeowners": [
