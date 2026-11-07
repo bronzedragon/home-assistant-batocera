@@ -4,7 +4,10 @@
 
 Custom Home Assistant integration for Batocera's EmulationStation HTTP API.
 
-**v0.1.0 development preview (read-only)** — tested at the API level against Batocera 42.
+**v0.1.1 development preview (read-only)** — tested at the API level against Batocera 42 and 43 response samples.
+
+### v0.1.1 compatibility fix
+Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is active. Earlier versions of this integration treated that response as an API error and marked all entities unavailable. The client now accepts both 200 and 201 for `/isIdle`, while separately handling the `NO GAME RUNNING` response from `/runningGame`.
 
 ## Features
 - Configuration flow for a Batocera host and port (default TCP 1234)
