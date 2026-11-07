@@ -4,12 +4,14 @@
 
 Custom Home Assistant integration for Batocera's EmulationStation HTTP API.
 
-**v0.1.1 development preview (read-only)** — tested at the API level against Batocera 42 and 43 response samples.
+**v0.2.0 development preview (read-only)** — active-game monitoring verified with Batocera 43.1; browse feature still needs live Home Assistant testing.
 
 ### v0.1.1 compatibility fix
 Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is active. Earlier versions of this integration treated that response as an API error and marked all entities unavailable. The client now accepts both 200 and 201 for `/isIdle`, while separately handling the `NO GAME RUNNING` response from `/runningGame`.
 
 ## Features
+- Console selection and on-demand game lists through Home Assistant select entities
+- Game selection and a metadata sensor with description, release date, genre, developer, rating, favorites, play history, and media URLs
 - Configuration flow for a Batocera host and port (default TCP 1234)
 - Version, system state, current game, current console
 - Console and game counts with automatic collections excluded
@@ -34,8 +36,13 @@ On Batocera enable System Settings → Frontend Developer Options → Public Web
 - `GET /isIdle` gives a Boolean array, e.g. `[true]`
 - `GET /runningGame` returns HTTP 201 and `{"msg":"NO GAME RUNNING"}` when idle
 
+## Browse games in Home Assistant
+After installing and restarting Home Assistant, open the Batocera device and set **Browse Console**, then **Browse Game**. The **Selected Game** sensor exposes metadata in its attributes and the **Selected Console Game Count** sensor reports the number loaded. Selecting a game does not launch it.
+
+EmulationStation may expose thousands of games for a console; this integration retrieves only the chosen console. Game lists are held in memory and cleared on integration reload. Art URLs are exposed as metadata but not yet proxied through Home Assistant for artwork display.
+
 ## Planned
-On-demand console game browser; launch and stop controls; Wake-on-LAN; SSH power management.
+Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
 
 No ROM files or copyrighted game assets are distributed by this project.
 
