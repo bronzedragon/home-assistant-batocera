@@ -38,3 +38,7 @@ On Batocera enable System Settings → Frontend Developer Options → Public Web
 On-demand console game browser; launch and stop controls; Wake-on-LAN; SSH power management.
 
 No ROM files or copyrighted game assets are distributed by this project.
+
+## Integration icon
+
+Home Assistant 2026.3+ loads custom integration branding from `custom_components/batocera/brand/`. The icon package provides `icon.png` (256 × 256) and `icon@2x.png` (512 × 512). These binary assets must be added to the repository and included in the next release to appear in Home Assistant. A missing Marketplace/HACS listing icon does not necessarily mean Home Assistant's installed integration icon is missing.
