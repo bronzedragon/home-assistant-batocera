@@ -1,5 +1,7 @@
 # Home Assistant Batocera Linux
 
+[![Open in Home Assistant Marketplace](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=bronzedragon&repository=home-assistant-batocera&category=integration)
+
 Custom Home Assistant integration for Batocera's EmulationStation HTTP API.
 
 **v0.1.0 development preview (read-only)** — tested at the API level against Batocera 42.
