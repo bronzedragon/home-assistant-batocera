@@ -18,7 +18,7 @@ class BatoceraApi:
         self._session = session
         self.base_url = f"http://{host}:{port}"
 
-    async def _get(self, path: str, *, allow_no_game: bool = False):
+    async def _get(self, path: str, *, allow_no_game: bool = False, allow_idle_201: bool = False):
         try:
             async with self._session.get(
                 f"{self.base_url}{path}", timeout=ClientTimeout(total=10)
@@ -27,7 +27,7 @@ class BatoceraApi:
                     body = await response.json(content_type=None)
                     if isinstance(body, dict) and body.get("msg") == "NO GAME RUNNING":
                         return None
-                if response.status != 200:
+                if response.status != 200 and not (allow_idle_201 and response.status == 201):
                     raise BatoceraApiError(f"{path}: HTTP {response.status}")
                 return await response.json(content_type=None)
         except (ClientError, TimeoutError, ValueError) as err:
@@ -52,7 +52,7 @@ class BatoceraApi:
         return result
 
     async def is_idle(self) -> bool:
-        result = await self._get("/isIdle")
+        result = await self._get("/isIdle", allow_idle_201=True)
         if not isinstance(result, list) or not result or not isinstance(result[0], bool):
             raise BatoceraApiError("Unexpected /isIdle response")
         return result[0]
