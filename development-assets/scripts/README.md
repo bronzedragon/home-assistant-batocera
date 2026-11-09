@@ -22,7 +22,7 @@ These are **Batocera-side development/deployment assets**, not part of the Home 
 Create a UTF-8 plain-text file named `DISPLAY_NAME` **in the same directory as the installed `batocera_mdns` script**. The first line is used *exactly* as the mDNS service instance label, including Unicode characters, spaces, and apostrophes. Do **not** put shell quotes around the text.
 
 ```bash
-printf '%s\\n' "銀龍's Emulation Box" > /userdata/system/services/DISPLAY_NAME
+printf '%s\n' "銀龍's Emulation Box" > /userdata/system/services/DISPLAY_NAME
 /userdata/system/services/batocera_mdns display-name
 batocera-services stop batocera_mdns
 batocera-services start batocera_mdns
