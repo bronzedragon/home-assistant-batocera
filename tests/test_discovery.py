@@ -70,6 +70,17 @@ class FakeConfigFlow:
 
 
 config_entries.ConfigFlow = FakeConfigFlow
+
+
+class FakeOptionsFlow:
+    def async_show_form(self, step_id, **kwargs):
+        return {"type": "form", "step_id": step_id, **kwargs}
+
+    def async_create_entry(self, title, data):
+        return {"type": "create_entry", "title": title, "data": data}
+
+
+config_entries.OptionsFlow = FakeOptionsFlow
 ha.config_entries = config_entries
 
 const = module("homeassistant.const")
@@ -103,6 +114,17 @@ api.BatoceraApi = FakeApi
 constants = module("batocera_discovery_tests.const")
 constants.DEFAULT_PORT = 1234
 constants.DOMAIN = "batocera"
+
+naming_source = (
+    Path(__file__).resolve().parents[1]
+    / "custom_components" / "batocera" / "naming.py"
+)
+naming_spec = importlib.util.spec_from_file_location(
+    "batocera_discovery_tests.naming", naming_source
+)
+naming = importlib.util.module_from_spec(naming_spec)
+sys.modules[naming_spec.name] = naming
+naming_spec.loader.exec_module(naming)
 
 source = (
     Path(__file__).resolve().parents[1]
@@ -143,6 +165,7 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["type"], "create_entry")
         self.assertEqual(result["title"], "Batocera on ginryuus-Emulation-Box")
         self.assertEqual(result["data"]["discovery_name"], "Batocera on ginryuus-Emulation-Box")
+        self.assertEqual(result["data"]["hostname"], "ginryuu")
         self.assertEqual(result["data"]["wol"], "enabled")
         self.assertEqual(result["data"]["mac"], "3c:52:82:63:12:63")
 
@@ -167,6 +190,7 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["reason"], "already_configured")
         self.assertEqual(entry.data["mac"], "3c:52:82:63:12:63")
         self.assertEqual(entry.data["wol"], "enabled")
+        self.assertEqual(entry.data["hostname"], "ginryuu")
         self.assertEqual(entry.title, "Batocera on ginryuus-Emulation-Box")
 
     async def test_existing_mdns_entry_title_updated(self):
@@ -187,6 +211,35 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
             ),
             "Living Room Gaming",
         )
+
+    async def test_unicode_advertisement_keeps_ascii_hostname(self):
+        info = advertise()
+        info.name = "銀龍のゲーム機._batocera._tcp.local."
+        result = await self.flow.async_step_zeroconf(info)
+        self.assertEqual(result["step_id"], "discovery_confirm")
+        entry = await self.flow.async_step_discovery_confirm({})
+        self.assertEqual(entry["title"], "銀龍のゲーム機")
+        self.assertEqual(entry["data"]["hostname"], "ginryuu")
+
+    async def test_options_hostname_override(self):
+        entry = types.SimpleNamespace(
+            data={"host": "10.8.76.244", "hostname": "ginryuu"},
+            options={},
+        )
+        flow = discovery.BatoceraConfigFlow.async_get_options_flow(entry)
+        result = await flow.async_step_init({"hostname": "ginryuus-box"})
+        self.assertEqual(result["data"]["hostname"], "ginryuus-box")
+        entry.options = result["data"]
+        self.assertEqual(naming.entity_device_name(entry), "ginryuus-box")
+
+    async def test_options_reject_unicode_hostname(self):
+        entry = types.SimpleNamespace(
+            data={"host": "10.8.76.244", "hostname": "ginryuu"},
+            options={},
+        )
+        flow = discovery.BatoceraConfigFlow.async_get_options_flow(entry)
+        result = await flow.async_step_init({"hostname": "銀龍"})
+        self.assertEqual(result["errors"]["hostname"], "invalid_hostname")
 
     async def test_failed_capability_check_aborts(self):
         self.flow._check_api = AsyncMock(return_value=False)
