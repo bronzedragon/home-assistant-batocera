@@ -23,6 +23,7 @@ CONF_WOL_MODES = "wol_modes"
 CONF_MODEL = "model"
 CONF_ARCH = "arch"
 CONF_INTERFACE = "interface"
+CONF_DISCOVERY_NAME = "discovery_name"
 
 _MAC_RE = re.compile(r"^(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
 
@@ -41,6 +42,16 @@ def discovery_metadata(properties: dict) -> dict:
 def matching_host(a: str, b: str) -> bool:
     """Compare literal IPs and ordinary mDNS hostnames, without doing DNS."""
     return a.rstrip(".").lower() == b.rstrip(".").lower()
+
+
+def advertised_display_name(service_name: str) -> str:
+    """Return the instance label, excluding the DNS-SD service/type suffix."""
+    suffix = "._batocera._tcp.local."
+    if service_name.lower().endswith(suffix):
+        name = service_name[:-len(suffix)]
+    else:
+        name = service_name.rstrip(".")
+    return name.strip()[:128]
 
 
 class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -115,18 +126,21 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not await self._check_api(host, port):
             return self.async_abort(reason="cannot_connect")
 
+        display_name = advertised_display_name(discovery_info.name)
+        if not display_name:
+            return self.async_abort(reason="invalid_discovery")
+
         details = {
+            CONF_DISCOVERY_NAME: display_name,
             CONF_HOST: host,
             CONF_PORT: port,
             CONF_MAC: mac,
             **discovery_metadata(properties),
         }
 
-        # A previously discovered entry uses its stable MAC as the unique ID.
-        await self.async_set_unique_id(mac)
-        self._abort_if_unique_id_configured(updates=details)
-
-        # Reconcile older manually configured entries, which used host:port IDs.
+        # Reconcile already configured devices before the unique-ID abort so
+        # their display titles can follow the current advertised service name.
+        # This also covers older manually configured host:port IDs.
         # This handles matching IPs or identical hostnames, but cannot establish
         # that a changed hostname and a new IP belong to the same older entry.
         for entry in self._async_current_entries():
@@ -137,14 +151,16 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         and (matching_host(entry_host, host)
                              or matching_host(entry_host, advertised_hostname)))):
                 self.hass.config_entries.async_update_entry(
-                    entry, data={**entry.data, **details}
+                    entry, data={**entry.data, **details}, title=display_name
                 )
                 return self.async_abort(reason="already_configured")
 
+        # A newly discovered entry uses its stable MAC as the unique ID.
+        await self.async_set_unique_id(mac)
+        self._abort_if_unique_id_configured(updates=details)
+
         self._discovered_data = details
-        self._discovered_title = (
-            f"Batocera ({discovery_info.hostname.rstrip('.')})"
-        )
+        self._discovered_title = display_name
         return await self.async_step_discovery_confirm()
 
     async def async_step_discovery_confirm(self, user_input=None):
