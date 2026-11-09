@@ -38,7 +38,7 @@ class BatoceraBrowser:
 
     @property
     def game_options(self) -> list[str]:
-        return list(self.game_labels)
+        return sorted(self.game_labels, key=lambda label: (label.casefold(), label))
 
     @property
     def current_game_option(self) -> str | None:
