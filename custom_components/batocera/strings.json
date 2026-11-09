@@ -30,16 +30,18 @@
     "step": {
       "init": {
         "title": "Batocera identity and Wake-on-LAN",
-        "description": "Configure the ASCII hostname used for entities and the persistent MAC used to wake Batocera while it is powered off. The mDNS display title remains independent.",
+        "description": "Configure the ASCII entity hostname, MAC address for offline wake, and UDP broadcast destination. The Unicode mDNS display title stays independent.",
         "data": {
           "hostname": "Entity hostname",
-          "mac": "Wake-on-LAN MAC address (optional)"
+          "mac": "Wake-on-LAN MAC address (optional)",
+          "wol_broadcast": "Wake-on-LAN broadcast address"
         }
       }
     },
     "error": {
       "invalid_hostname": "Enter a single ASCII hostname using letters, digits, and hyphens.",
-      "invalid_mac": "Enter a valid unicast MAC address (for example, 3c:52:82:63:12:63)."
+      "invalid_mac": "Enter a valid unicast MAC address (for example, 3c:52:82:63:12:63).",
+      "invalid_broadcast": "Enter a valid IPv4 broadcast destination (for example, 10.8.76.255)."
     }
   }
 }
