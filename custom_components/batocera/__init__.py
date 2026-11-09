@@ -9,7 +9,7 @@ from .api import BatoceraApi
 from .browser import BatoceraBrowser
 from .coordinator import BatoceraCoordinator
 
-PLATFORMS = ["sensor", "binary_sensor", "select"]
+PLATFORMS = ["sensor", "binary_sensor", "select", "button"]
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
