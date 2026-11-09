@@ -70,7 +70,7 @@ class WakeButtonTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(wake.socket, "socket", return_value=sock):
             wake.send_magic_packet("3c:52:82:63:12:63")
         raw = bytes.fromhex("3c5282631263")
-        self.assertEqual(sock.sent, [(b"\\xff" * 6 + raw * 16, ("255.255.255.255", 9))])
+        self.assertEqual(sock.sent, [(bytes([255]) * 6 + raw * 16, ("255.255.255.255", 9))])
         self.assertIn(
             (wake.socket.SOL_SOCKET, wake.socket.SO_BROADCAST, 1), sock.options
         )
