@@ -55,6 +55,10 @@ After installing and restarting Home Assistant, open the Batocera device and set
 
 EmulationStation may expose thousands of games for a console; this integration retrieves only the chosen console. Game lists are held in memory and cleared on integration reload. Art URLs are exposed as metadata but not yet proxied through Home Assistant for artwork display.
 
+## Development resources
+
+Non-installable project scripts and artwork are organized in [`development-assets/`](development-assets/), with separate [`scripts/`](development-assets/scripts/) and [`images/`](development-assets/images/) directories. These are not deployed by HACS; integration branding remains in `custom_components/batocera/brand/`.
+
 ## Planned
 Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
 
