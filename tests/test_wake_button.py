@@ -27,7 +27,7 @@ package.__path__ = []
 stub("batocera_wake_tests.const").DOMAIN = "batocera"
 stub("batocera_wake_tests.naming").entity_device_name = lambda entry: "ginryuu"
 
-wol_power = stub("batocera_wake_tests.power")
+power = stub("batocera_wake_tests.power")
 power.power_settings = lambda entry: {"enabled": False}
 power.settings_ready = lambda entry: False
 async def fake_send_power_command(entry, action):
@@ -35,7 +35,7 @@ async def fake_send_power_command(entry, action):
 power.send_power_command = fake_send_power_command
 stub("homeassistant.helpers.entity").EntityCategory = types.SimpleNamespace(CONFIG="config")
 
-source = (
+wol_source = (
     Path(__file__).resolve().parents[1]
     / "custom_components" / "batocera" / "wol.py"
 )
