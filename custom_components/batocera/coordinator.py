@@ -50,7 +50,8 @@ class BatoceraCoordinator(DataUpdateCoordinator[dict]):
                 if isinstance(s.get("name"), str) and s["name"]
                 and str(s.get("collection", "false")).lower() != "true"
                 and (int(s.get("totalGames", 0)) > 0
-                     or int(s.get("visibleGames", 0)) > 0)
+                     or int(s.get("visibleGames", 0)) > 0
+                     or str(s.get("groupsystem", "false")).lower() == "true")
             ]
             return {
                 "version": caps["Version"],
