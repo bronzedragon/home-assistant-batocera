@@ -18,6 +18,7 @@ Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is ac
 ## Features
 - Discover Avahi-advertised Batocera machines via `_batocera._tcp.local.` and confirm setup in Home Assistant
 - Retain discovered MAC, hardware model, architecture, interface and WoL capability in configuration data
+- Show MAC, hardware model, network interface, architecture, WoL modes, WoL support and WoL enabled state as diagnostic entities
 - Console selection and on-demand game lists through Home Assistant select entities
 - Game selection and a metadata sensor with description, release date, genre, developer, rating, favorites, play history, and media URLs
 - Configuration flow for a Batocera host and port (default TCP 1234)
@@ -65,6 +66,23 @@ Non-installable project scripts and artwork are organized in [`development-asset
 The mDNS **service instance display name** (including Unicode, for example `銀龍`) is used for the Home Assistant **integration title**. The separate **hostname** setting is a single ASCII DNS label and is used as the Home Assistant device name / suggested entity naming prefix. Zeroconf discovery fills it from the SRV hostname (for example `ginryuu.local.` becomes `ginryuu`), never from the translated or Unicode service display label. For manual setup, the optional hostname field defaults to a safe name derived from the connection host.
 
 To change it after setup, open **Settings → Devices & services → Batocera → Configure (Options)** and edit **Entity hostname**; an integration reload applies the new device name. Existing entity registry IDs and user-renamed devices/entities are retained by Home Assistant and may need manual renaming; this deliberately avoids breaking dashboards and automations. The connection address, mDNS display title, and stable integration/entity unique IDs do not change when the hostname option changes.
+
+
+## Hardware and Wake-on-LAN diagnostics
+
+After mDNS discovery, the Batocera device exposes these **Diagnostic** entities, alongside the existing gameplay sensors:
+
+| Entity | Type | Source |
+| --- | --- | --- |
+| MAC Address | Sensor | Cached `mac` from Avahi |
+| Hardware Model | Sensor | Cached `model` |
+| Network Interface | Sensor | Cached `interface` |
+| Architecture | Sensor | Cached `arch` |
+| Wake-on-LAN Modes | Sensor | Cached `wol_modes` |
+| Wake-on-LAN Supported | Binary sensor | Cached `wol_supported` |
+| Wake-on-LAN Enabled | Binary sensor | Cached `wol` |
+
+These values are **snapshots of the most recently processed advertisement**, not live NIC readings. Diagnostic entities remain available when the EmulationStation API is offline, so long as cached metadata is present. Missing or unknown values appear unavailable rather than claiming WoL is disabled. Home Assistant may hide diagnostic entities from the main Sensors card; find them on the Batocera device under **Diagnostic**, or in **Entities**. After changing discovery details, reload/restart the integration to refresh entity states. None of these entities send a magic packet or alter WoL settings.
 
 ## Planned
 Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
