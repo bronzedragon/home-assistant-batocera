@@ -9,7 +9,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/bronzedragon/home-assistant-batocera/issues",
   "requirements": [
-    "asyncssh==2.24.1"
+    "asyncssh==2.24.0"
   ],
   "version": "0.3.0",
   "zeroconf": [
