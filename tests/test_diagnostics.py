@@ -47,6 +47,7 @@ def load(component):
     return module
 
 
+wol = load("wol")
 sensors = load("sensor")
 binary_sensors = load("binary_sensor")
 
