@@ -127,6 +127,17 @@ naming = importlib.util.module_from_spec(naming_spec)
 sys.modules[naming_spec.name] = naming
 naming_spec.loader.exec_module(naming)
 
+wol_source = (
+    Path(__file__).resolve().parents[1]
+    / "custom_components" / "batocera" / "wol.py"
+)
+wol_spec = importlib.util.spec_from_file_location(
+    "batocera_discovery_tests.wol", wol_source
+)
+wol_module = importlib.util.module_from_spec(wol_spec)
+sys.modules[wol_spec.name] = wol_module
+wol_spec.loader.exec_module(wol_module)
+
 source = (
     Path(__file__).resolve().parents[1]
     / "custom_components" / "batocera" / "config_flow.py"
@@ -232,6 +243,31 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["data"]["hostname"], "ginryuus-box")
         entry.options = result["data"]
         self.assertEqual(naming.entity_device_name(entry), "ginryuus-box")
+
+    async def test_offline_mac_override_in_options(self):
+        entry = types.SimpleNamespace(
+            data={"host": "10.8.76.244", "hostname": "ginryuu"},
+            options={},
+            unique_id="10.8.76.244:1234",
+        )
+        flow = discovery.BatoceraConfigFlow.async_get_options_flow(entry)
+        result = await flow.async_step_init({
+            "hostname": "ginryuu", "mac": "3c:52:82:63:12:63"
+        })
+        self.assertEqual(result["type"], "create_entry")
+        entry.options = result["data"]
+        self.assertEqual(wol_module.effective_mac(entry), "3c:52:82:63:12:63")
+
+    async def test_invalid_offline_mac_rejected(self):
+        entry = types.SimpleNamespace(
+            data={"host": "10.8.76.244", "hostname": "ginryuu"},
+            options={}, unique_id=None,
+        )
+        flow = discovery.BatoceraConfigFlow.async_get_options_flow(entry)
+        result = await flow.async_step_init({
+            "hostname": "ginryuu", "mac": "ff:ff:ff:ff:ff:ff"
+        })
+        self.assertEqual(result["errors"]["mac"], "invalid_mac")
 
     async def test_options_reject_unicode_hostname(self):
         entry = types.SimpleNamespace(
