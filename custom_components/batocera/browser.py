@@ -19,7 +19,7 @@ class BatoceraBrowser:
 
     @property
     def systems(self) -> list[dict]:
-        return self.coordinator.data.get("systems", []) if self.coordinator.data else []
+        return self.coordinator.data.get("browsable_systems", self.coordinator.data.get("systems", [])) if self.coordinator.data else []
 
     @property
     def console_options(self) -> list[str]:
