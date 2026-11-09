@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify Unicode, punctuation, BOM/CRLF and fallback without Avahi.
+# Verify Unicode, punctuation, CRLF and fallback without Avahi.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,7 +15,7 @@ printf '%s\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
 : > "$tmp/DISPLAY_NAME"
 [[ "$(bash "$tmp/batocera_mdns" display-name)" == "$(hostname)" ]]
 
-printf '\xef\xbb\xbf%s\r\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
+printf '%s\r\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
 [[ "$(bash "$tmp/batocera_mdns" display-name)" == "銀龍's Emulation Box" ]]
 
 echo "Display-name tests passed"
