@@ -16,6 +16,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from .api import BatoceraApi, BatoceraApiError
 from .const import DEFAULT_PORT, DOMAIN
 from .naming import CONF_HOSTNAME, fallback_hostname, normalized_hostname
+from .wol import effective_mac, valid_wol_mac
 
 CONF_MAC = "mac"
 CONF_WOL = "wol"
@@ -215,10 +216,16 @@ class BatoceraOptionsFlow(config_entries.OptionsFlow):
             except ValueError:
                 errors[CONF_HOSTNAME] = "invalid_hostname"
             else:
-                return self.async_create_entry(
-                    title="",
-                    data={**self._config_entry.options, CONF_HOSTNAME: hostname},
-                )
+                mac = user_input.get(CONF_MAC, "").strip()
+                if mac and not valid_wol_mac(mac):
+                    errors[CONF_MAC] = "invalid_mac"
+                else:
+                    updated = {**self._config_entry.options, CONF_HOSTNAME: hostname}
+                    if mac:
+                        updated[CONF_MAC] = mac.lower()
+                    else:
+                        updated.pop(CONF_MAC, None)
+                    return self.async_create_entry(title="", data=updated)
         default = (
             self._config_entry.options.get(CONF_HOSTNAME)
             or self._config_entry.data.get(CONF_HOSTNAME)
@@ -226,6 +233,9 @@ class BatoceraOptionsFlow(config_entries.OptionsFlow):
         )
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema({vol.Required(CONF_HOSTNAME, default=default): str}),
+            data_schema=vol.Schema({
+                vol.Required(CONF_HOSTNAME, default=default): str,
+                vol.Optional(CONF_MAC, default=effective_mac(self._config_entry) or ""): str,
+            }),
             errors=errors,
         )
