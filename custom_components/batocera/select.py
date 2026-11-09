@@ -5,6 +5,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .naming import entity_device_name
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -27,7 +28,7 @@ class BatoceraBrowseSelect(CoordinatorEntity, SelectEntity):
         self._attr_unique_id = f"{entry.entry_id}_browse_{kind}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
+            name=entity_device_name(entry),
             manufacturer="Batocera",
             model="EmulationStation",
         )
