@@ -12,15 +12,498 @@ DISPLAY_NAME_FILE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/DISPLAY_N
 
 log() { printf 'batocera_mdns: %s\n' "$*"; }
 
-log() { printf 'batocera_mdns: %s\n' "$*"; }
-
 advertised_name() {
     # Use first UTF-8 line verbatim, including Unicode and apostrophes.
     # A missing or blank file falls back to the Linux hostname.
     local name=""
     if [ -r "$DISPLAY_NAME_FILE" ]; then
         IFS= read -r name < "$DISPLAY_NAME_FILE" || true
-        name="${name#$'\\xef\\xbb\\xbf'}"
+        name="${name#}"
+        name="${name%}"
+        if [ -n "$name" ] && [[ ! "$name" =~ [[:cntrl:]] ]]; then
+            printf '%s' "$name"
+            return
+        fi
+    fi
+    hostname
+}
+
+default_interface() {
+    ip -4 route show default 2>/dev/null |
+        awk '/^default / {for (i=1; i<=NF; i++) if ($i=="dev") {print $(i+1); exit}}'
+}
+
+mac_for_interface() {
+    local iface="$1"
+    [ -r "/sys/class/net/$iface/address" ] || return 1
+    cat "/sys/class/net/$iface/address"
+}
+
+model_name() {
+    local value=""
+    if [ -r /sys/class/dmi/id/product_name ]; then
+        IFS= read -r value < /sys/class/dmi/id/product_name || true
+    fi
+    if [ -z "$value" ] && [ -r /proc/device-tree/model ]; then
+        value=$(tr -d '\000' < /proc/device-tree/model)
+    fi
+    [ -n "$value" ] || value=$(uname -m)
+    # Keep TXT data bounded, avoid linebreaks, and strip nonprintable characters.
+    printf '%s' "$value" | LC_ALL=C tr -cd '[:print:]' | cut -c 1-180
+}
+
+get_wol_info() {
+    local iface="$1" output supported active
+    WOL="unknown"
+    WOL_SUPPORTED="unknown"
+    WOL_MODES="unknown"
+
+    command -v ethtool >/dev/null 2>&1 || return 0
+    output=$(ethtool "$iface" 2>/dev/null) || return 0
+    supported=$(printf '%s\n' "$output" |
+        sed -n 's/^[[:space:]]*Supports Wake-on:[[:space:]]*//p' | head -n 1)
+    active=$(printf '%s\n' "$output" |
+        sed -n 's/^[[:space:]]*Wake-on:[[:space:]]*//p' | head -n 1)
+
+    if [ -n "$supported" ]; then
+        WOL_MODES="$supported"
+        if [[ "$supported" == *g* ]]; then
+            WOL_SUPPORTED="true"
+            if [[ "$active" == *g* ]]; then
+                WOL="enabled"
+            elif [ -n "$active" ]; then
+                WOL="disabled"
+            fi
+        else
+            WOL_SUPPORTED="false"
+            WOL="unsupported"
+        fi
+    fi
+}
+
+publisher_running() {
+    local pid cmd
+    [ -r "$PIDFILE" ] || return 1
+    read -r pid < "$PIDFILE" || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ -r "/proc/$pid/cmdline" ] || return 1
+    cmd=$(tr '\000' ' ' < "/proc/$pid/cmdline")
+    [[ "$cmd" == *avahi-publish-service* && "$cmd" == *"$SERVICE_TYPE"* ]]
+}
+
+start_service() {
+    local iface mac host display_name model arch attempt
+    if publisher_running; then
+        log "already advertising (PID $(cat "$PIDFILE"))"
+        return 0
+    fi
+    rm -f "$PIDFILE"
+
+    command -v avahi-publish-service >/dev/null 2>&1 || {
+        log "ERROR: avahi-publish-service is missing"
+        return 1
+    }
+
+    # Allow a little time for networking and Avahi during system startup.
+    for attempt in 1 2 3 4 5; do
+        iface=$(default_interface)
+        if [ -n "$iface" ] && pidof avahi-daemon >/dev/null 2>&1; then
+            break
+        fi
+        sleep 2
+    done
+    [ -n "$iface" ] && pidof avahi-daemon >/dev/null 2>&1 || {
+        log "ERROR: no default IPv4 interface or Avahi daemon"
+        return 1
+    }
+
+    mac=$(mac_for_interface "$iface") || {
+        log "ERROR: no MAC address for $iface"
+        return 1
+    }
+    if ! [[ "$mac" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
+        [ "$mac" = "00:00:00:00:00:00" ]; then
+        log "ERROR: invalid MAC for $iface"
+        return 1
+    fi
+
+    host=$(hostname)
+    display_name=$(advertised_name)
+    model=$(model_name)
+    arch=$(uname -m)
+    get_wol_info "$iface"
+
+    log "publishing $display_name (host $host) on $iface ($mac), $model; WoL=$WOL"
+    avahi-publish-service \
+        "$display_name" "$SERVICE_TYPE" "$SERVICE_PORT" \
+        "api=emulationstation" "api_version=1" \
+        "mac=$mac" "model=$model" "arch=$arch" \
+        "interface=$iface" "wol=$WOL" \
+        "wol_supported=$WOL_SUPPORTED" "wol_modes=$WOL_MODES" \
+        > "$LOGFILE" 2>&1 &
+    echo "$!" > "$PIDFILE"
+    sleep 1
+    if ! publisher_running; then
+        log "ERROR: publisher exited; see $LOGFILE"
+        rm -f "$PIDFILE"
+        return 1
+    fi
+}
+
+stop_service() {
+    local pid
+    if publisher_running; then
+        read -r pid < "$PIDFILE"
+        kill "$pid" 2>/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+}
+
+case "${1:-}" in
+    start) start_service ;;
+    stop) stop_service ;;
+    restart) stop_service; start_service ;;
+    display-name)
+        advertised_name
+        printf '\n'
+        ;;
+    status)
+        if publisher_running; then
+            log "running (PID $(cat "$PIDFILE"))"
+        else
+            log "not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|display-name}" >&2
+        exit 2
+        ;;
+esac
+\xef\xbb\xbf'}"
+        name="${name%$'\\r'}"
+        if [ -n "$name" ] && [[ ! "$name" =~ [[:cntrl:]] ]]; then
+            printf '%s' "$name"
+            return
+        fi
+    fi
+    hostname
+}
+
+default_interface() {
+    ip -4 route show default 2>/dev/null |
+        awk '/^default / {for (i=1; i<=NF; i++) if ($i=="dev") {print $(i+1); exit}}'
+}
+
+mac_for_interface() {
+    local iface="$1"
+    [ -r "/sys/class/net/$iface/address" ] || return 1
+    cat "/sys/class/net/$iface/address"
+}
+
+model_name() {
+    local value=""
+    if [ -r /sys/class/dmi/id/product_name ]; then
+        IFS= read -r value < /sys/class/dmi/id/product_name || true
+    fi
+    if [ -z "$value" ] && [ -r /proc/device-tree/model ]; then
+        value=$(tr -d '\000' < /proc/device-tree/model)
+    fi
+    [ -n "$value" ] || value=$(uname -m)
+    # Keep TXT data bounded, avoid linebreaks, and strip nonprintable characters.
+    printf '%s' "$value" | LC_ALL=C tr -cd '[:print:]' | cut -c 1-180
+}
+
+get_wol_info() {
+    local iface="$1" output supported active
+    WOL="unknown"
+    WOL_SUPPORTED="unknown"
+    WOL_MODES="unknown"
+
+    command -v ethtool >/dev/null 2>&1 || return 0
+    output=$(ethtool "$iface" 2>/dev/null) || return 0
+    supported=$(printf '%s\n' "$output" |
+        sed -n 's/^[[:space:]]*Supports Wake-on:[[:space:]]*//p' | head -n 1)
+    active=$(printf '%s\n' "$output" |
+        sed -n 's/^[[:space:]]*Wake-on:[[:space:]]*//p' | head -n 1)
+
+    if [ -n "$supported" ]; then
+        WOL_MODES="$supported"
+        if [[ "$supported" == *g* ]]; then
+            WOL_SUPPORTED="true"
+            if [[ "$active" == *g* ]]; then
+                WOL="enabled"
+            elif [ -n "$active" ]; then
+                WOL="disabled"
+            fi
+        else
+            WOL_SUPPORTED="false"
+            WOL="unsupported"
+        fi
+    fi
+}
+
+publisher_running() {
+    local pid cmd
+    [ -r "$PIDFILE" ] || return 1
+    read -r pid < "$PIDFILE" || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ -r "/proc/$pid/cmdline" ] || return 1
+    cmd=$(tr '\000' ' ' < "/proc/$pid/cmdline")
+    [[ "$cmd" == *avahi-publish-service* && "$cmd" == *"$SERVICE_TYPE"* ]]
+}
+
+start_service() {
+    local iface mac host display_name model arch attempt
+    if publisher_running; then
+        log "already advertising (PID $(cat "$PIDFILE"))"
+        return 0
+    fi
+    rm -f "$PIDFILE"
+
+    command -v avahi-publish-service >/dev/null 2>&1 || {
+        log "ERROR: avahi-publish-service is missing"
+        return 1
+    }
+
+    # Allow a little time for networking and Avahi during system startup.
+    for attempt in 1 2 3 4 5; do
+        iface=$(default_interface)
+        if [ -n "$iface" ] && pidof avahi-daemon >/dev/null 2>&1; then
+            break
+        fi
+        sleep 2
+    done
+    [ -n "$iface" ] && pidof avahi-daemon >/dev/null 2>&1 || {
+        log "ERROR: no default IPv4 interface or Avahi daemon"
+        return 1
+    }
+
+    mac=$(mac_for_interface "$iface") || {
+        log "ERROR: no MAC address for $iface"
+        return 1
+    }
+    if ! [[ "$mac" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
+        [ "$mac" = "00:00:00:00:00:00" ]; then
+        log "ERROR: invalid MAC for $iface"
+        return 1
+    fi
+
+    host=$(hostname)
+    display_name=$(advertised_name)
+    model=$(model_name)
+    arch=$(uname -m)
+    get_wol_info "$iface"
+
+    log "publishing $display_name (host $host) on $iface ($mac), $model; WoL=$WOL"
+    avahi-publish-service \
+        "$display_name" "$SERVICE_TYPE" "$SERVICE_PORT" \
+        "api=emulationstation" "api_version=1" \
+        "mac=$mac" "model=$model" "arch=$arch" \
+        "interface=$iface" "wol=$WOL" \
+        "wol_supported=$WOL_SUPPORTED" "wol_modes=$WOL_MODES" \
+        > "$LOGFILE" 2>&1 &
+    echo "$!" > "$PIDFILE"
+    sleep 1
+    if ! publisher_running; then
+        log "ERROR: publisher exited; see $LOGFILE"
+        rm -f "$PIDFILE"
+        return 1
+    fi
+}
+
+stop_service() {
+    local pid
+    if publisher_running; then
+        read -r pid < "$PIDFILE"
+        kill "$pid" 2>/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+}
+
+case "${1:-}" in
+    start) start_service ;;
+    stop) stop_service ;;
+    restart) stop_service; start_service ;;
+    display-name)
+        advertised_name
+        printf '\n'
+        ;;
+    status)
+        if publisher_running; then
+            log "running (PID $(cat "$PIDFILE"))"
+        else
+            log "not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|display-name}" >&2
+        exit 2
+        ;;
+esac
+\r'}"
+        if [ -n "$name" ] && [[ ! "$name" =~ [[:cntrl:]] ]]; then
+            printf '%s' "$name"
+            return
+        fi
+    fi
+    hostname
+}
+
+default_interface() {
+    ip -4 route show default 2>/dev/null |
+        awk '/^default / {for (i=1; i<=NF; i++) if ($i=="dev") {print $(i+1); exit}}'
+}
+
+mac_for_interface() {
+    local iface="$1"
+    [ -r "/sys/class/net/$iface/address" ] || return 1
+    cat "/sys/class/net/$iface/address"
+}
+
+model_name() {
+    local value=""
+    if [ -r /sys/class/dmi/id/product_name ]; then
+        IFS= read -r value < /sys/class/dmi/id/product_name || true
+    fi
+    if [ -z "$value" ] && [ -r /proc/device-tree/model ]; then
+        value=$(tr -d '\000' < /proc/device-tree/model)
+    fi
+    [ -n "$value" ] || value=$(uname -m)
+    # Keep TXT data bounded, avoid linebreaks, and strip nonprintable characters.
+    printf '%s' "$value" | LC_ALL=C tr -cd '[:print:]' | cut -c 1-180
+}
+
+get_wol_info() {
+    local iface="$1" output supported active
+    WOL="unknown"
+    WOL_SUPPORTED="unknown"
+    WOL_MODES="unknown"
+
+    command -v ethtool >/dev/null 2>&1 || return 0
+    output=$(ethtool "$iface" 2>/dev/null) || return 0
+    supported=$(printf '%s\n' "$output" |
+        sed -n 's/^[[:space:]]*Supports Wake-on:[[:space:]]*//p' | head -n 1)
+    active=$(printf '%s\n' "$output" |
+        sed -n 's/^[[:space:]]*Wake-on:[[:space:]]*//p' | head -n 1)
+
+    if [ -n "$supported" ]; then
+        WOL_MODES="$supported"
+        if [[ "$supported" == *g* ]]; then
+            WOL_SUPPORTED="true"
+            if [[ "$active" == *g* ]]; then
+                WOL="enabled"
+            elif [ -n "$active" ]; then
+                WOL="disabled"
+            fi
+        else
+            WOL_SUPPORTED="false"
+            WOL="unsupported"
+        fi
+    fi
+}
+
+publisher_running() {
+    local pid cmd
+    [ -r "$PIDFILE" ] || return 1
+    read -r pid < "$PIDFILE" || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ -r "/proc/$pid/cmdline" ] || return 1
+    cmd=$(tr '\000' ' ' < "/proc/$pid/cmdline")
+    [[ "$cmd" == *avahi-publish-service* && "$cmd" == *"$SERVICE_TYPE"* ]]
+}
+
+start_service() {
+    local iface mac host display_name model arch attempt
+    if publisher_running; then
+        log "already advertising (PID $(cat "$PIDFILE"))"
+        return 0
+    fi
+    rm -f "$PIDFILE"
+
+    command -v avahi-publish-service >/dev/null 2>&1 || {
+        log "ERROR: avahi-publish-service is missing"
+        return 1
+    }
+
+    # Allow a little time for networking and Avahi during system startup.
+    for attempt in 1 2 3 4 5; do
+        iface=$(default_interface)
+        if [ -n "$iface" ] && pidof avahi-daemon >/dev/null 2>&1; then
+            break
+        fi
+        sleep 2
+    done
+    [ -n "$iface" ] && pidof avahi-daemon >/dev/null 2>&1 || {
+        log "ERROR: no default IPv4 interface or Avahi daemon"
+        return 1
+    }
+
+    mac=$(mac_for_interface "$iface") || {
+        log "ERROR: no MAC address for $iface"
+        return 1
+    }
+    if ! [[ "$mac" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
+        [ "$mac" = "00:00:00:00:00:00" ]; then
+        log "ERROR: invalid MAC for $iface"
+        return 1
+    fi
+
+    host=$(hostname)
+    display_name=$(advertised_name)
+    model=$(model_name)
+    arch=$(uname -m)
+    get_wol_info "$iface"
+
+    log "publishing $display_name (host $host) on $iface ($mac), $model; WoL=$WOL"
+    avahi-publish-service \
+        "$display_name" "$SERVICE_TYPE" "$SERVICE_PORT" \
+        "api=emulationstation" "api_version=1" \
+        "mac=$mac" "model=$model" "arch=$arch" \
+        "interface=$iface" "wol=$WOL" \
+        "wol_supported=$WOL_SUPPORTED" "wol_modes=$WOL_MODES" \
+        > "$LOGFILE" 2>&1 &
+    echo "$!" > "$PIDFILE"
+    sleep 1
+    if ! publisher_running; then
+        log "ERROR: publisher exited; see $LOGFILE"
+        rm -f "$PIDFILE"
+        return 1
+    fi
+}
+
+stop_service() {
+    local pid
+    if publisher_running; then
+        read -r pid < "$PIDFILE"
+        kill "$pid" 2>/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+}
+
+case "${1:-}" in
+    start) start_service ;;
+    stop) stop_service ;;
+    restart) stop_service; start_service ;;
+    display-name)
+        advertised_name
+        printf '\n'
+        ;;
+    status)
+        if publisher_running; then
+            log "running (PID $(cat "$PIDFILE"))"
+        else
+            log "not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|display-name}" >&2
+        exit 2
+        ;;
+esac
+\xef\xbb\xbf'}"
         name="${name%$'\\r'}"
         if [ -n "$name" ] && [[ ! "$name" =~ [[:cntrl:]] ]]; then
             printf '%s' "$name"
