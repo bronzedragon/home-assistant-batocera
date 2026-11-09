@@ -18,9 +18,9 @@ def stub(name):
 
 
 stub("homeassistant.components.button").ButtonEntity = type("ButtonEntity", (), {})
-stub("homeassistant.exceptions").HomeAssistantError = type(
-    "HomeAssistantError", (Exception,), {}
-)
+errors = stub("homeassistant.exceptions")
+if not hasattr(errors, "HomeAssistantError"):
+    errors.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
 stub("homeassistant.helpers.device_registry").DeviceInfo = dict
 package = stub("batocera_wake_tests")
 package.__path__ = []
