@@ -24,7 +24,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     coordinator = BatoceraCoordinator(hass, entry, api)
     coordinator.browser = BatoceraBrowser(coordinator)
-    await coordinator.async_config_entry_first_refresh()
+    # The WoL button must be registered even when Batocera is shut down.
+    # async_refresh retains the normal polling schedule without making
+    # an unreachable HTTP API block configuration entry setup.
+    await coordinator.async_refresh()
     entry.runtime_data = coordinator
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
