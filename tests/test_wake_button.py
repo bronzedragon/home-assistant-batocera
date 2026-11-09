@@ -27,6 +27,17 @@ package.__path__ = []
 stub("batocera_wake_tests.const").DOMAIN = "batocera"
 stub("batocera_wake_tests.naming").entity_device_name = lambda entry: "ginryuu"
 
+wol_source = (
+    Path(__file__).resolve().parents[1]
+    / "custom_components" / "batocera" / "wol.py"
+)
+wol_spec = importlib.util.spec_from_file_location(
+    "batocera_wake_tests.wol", wol_source
+)
+wol_module = importlib.util.module_from_spec(wol_spec)
+sys.modules[wol_spec.name] = wol_module
+wol_spec.loader.exec_module(wol_module)
+
 source = (
     Path(__file__).resolve().parents[1]
     / "custom_components" / "batocera" / "button.py"
@@ -65,6 +76,22 @@ class FakeHass:
 
 
 class WakeButtonTests(unittest.IsolatedAsyncioTestCase):
+    def test_recover_mac_from_unique_id(self):
+        entry = types.SimpleNamespace(
+            entry_id="abc", data={}, options={},
+            unique_id="3c:52:82:63:12:63",
+        )
+        self.assertEqual(wol_module.effective_mac(entry), "3c:52:82:63:12:63")
+        self.assertTrue(wake.BatoceraWakeButton(FakeHass(), entry).available)
+
+    def test_options_mac_override_survives_missing_discovery(self):
+        entry = types.SimpleNamespace(
+            entry_id="abc", data={}, options={"mac": "3C:52:82:63:12:63"},
+            unique_id="10.8.76.244:1234",
+        )
+        self.assertEqual(wol_module.effective_mac(entry), "3c:52:82:63:12:63")
+        self.assertTrue(wake.BatoceraWakeButton(FakeHass(), entry).available)
+
     def test_packet_bytes_and_broadcast(self):
         sock = MockSocket()
         with patch.object(wake.socket, "socket", return_value=sock):
