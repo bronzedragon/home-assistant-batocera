@@ -1,6 +1,7 @@
 """Batocera status and selected-game metadata sensors."""
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -16,6 +17,43 @@ async def async_setup_entry(hass, entry, async_add_entities):
             "current_console", "selected_game", "selected_console_game_count",
         )]
     )
+    async_add_entities([
+        BatoceraDiagnosticSensor(entry, key, title)
+        for key, title in (
+            ("mac", "MAC Address"),
+            ("model", "Hardware Model"),
+            ("interface", "Network Interface"),
+            ("arch", "Architecture"),
+            ("wol_modes", "Wake-on-LAN Modes"),
+        )
+    ])
+
+
+class BatoceraDiagnosticSensor(SensorEntity):
+    """Cached discovery information independent of API polling."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, entry, key, title):
+        self._entry = entry
+        self._key = key
+        self._attr_name = title
+        self._attr_unique_id = f"{entry.entry_id}_diagnostic_{key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entity_device_name(entry),
+            manufacturer="Batocera",
+            model="EmulationStation",
+        )
+
+    @property
+    def native_value(self):
+        return self._entry.data.get(self._key)
+
+    @property
+    def available(self):
+        return bool(self.native_value)
 
 
 class BatoceraSensor(CoordinatorEntity, SensorEntity):
