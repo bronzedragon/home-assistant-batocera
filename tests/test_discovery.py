@@ -38,8 +38,10 @@ class FakeConfigFlow:
         self.entries = []
         self.unique_id = None
 
-    def update_entry(self, entry, data):
+    def update_entry(self, entry, data, title=None):
         entry.data = data
+        if title is not None:
+            entry.title = title
 
     async def async_set_unique_id(self, value):
         self.unique_id = value
@@ -117,6 +119,7 @@ def advertise(mac="3c:52:82:63:12:63", api_name="emulationstation"):
     return types.SimpleNamespace(
         host="10.8.76.244",
         hostname="ginryuu.local.",
+        name="Batocera on ginryuus-Emulation-Box._batocera._tcp.local.",
         port=1234,
         properties={
             "api": api_name,
@@ -138,6 +141,8 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.flow.unique_id, "3c:52:82:63:12:63")
         result = await self.flow.async_step_discovery_confirm({})
         self.assertEqual(result["type"], "create_entry")
+        self.assertEqual(result["title"], "Batocera on ginryuus-Emulation-Box")
+        self.assertEqual(result["data"]["discovery_name"], "Batocera on ginryuus-Emulation-Box")
         self.assertEqual(result["data"]["wol"], "enabled")
         self.assertEqual(result["data"]["mac"], "3c:52:82:63:12:63")
 
@@ -154,6 +159,7 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
     async def test_existing_manual_entry_updated_without_duplicate(self):
         entry = types.SimpleNamespace(
             unique_id="10.8.76.244:1234",
+            title="Batocera (10.8.76.244)",
             data={"host": "10.8.76.244", "port": 1234},
         )
         self.flow.entries.append(entry)
@@ -161,6 +167,26 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["reason"], "already_configured")
         self.assertEqual(entry.data["mac"], "3c:52:82:63:12:63")
         self.assertEqual(entry.data["wol"], "enabled")
+        self.assertEqual(entry.title, "Batocera on ginryuus-Emulation-Box")
+
+    async def test_existing_mdns_entry_title_updated(self):
+        entry = types.SimpleNamespace(
+            unique_id="3c:52:82:63:12:63",
+            title="Batocera (ginryuu.local)",
+            data={"host": "10.8.76.244", "port": 1234, "mac": "3c:52:82:63:12:63"},
+        )
+        self.flow.entries.append(entry)
+        result = await self.flow.async_step_zeroconf(advertise())
+        self.assertEqual(result["reason"], "already_configured")
+        self.assertEqual(entry.title, "Batocera on ginryuus-Emulation-Box")
+
+    def test_display_name_extraction(self):
+        self.assertEqual(
+            discovery.advertised_display_name(
+                "Living Room Gaming._batocera._tcp.local."
+            ),
+            "Living Room Gaming",
+        )
 
     async def test_failed_capability_check_aborts(self):
         self.flow._check_api = AsyncMock(return_value=False)
