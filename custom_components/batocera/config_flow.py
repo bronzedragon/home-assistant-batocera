@@ -16,6 +16,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from .api import BatoceraApi, BatoceraApiError
 from .const import DEFAULT_PORT, DOMAIN
 from .naming import CONF_HOSTNAME, fallback_hostname, normalized_hostname
+from .power import DEFAULT_KNOWN_HOSTS, DEFAULT_SSH_KEY
 from .wol import (
     DEFAULT_BROADCAST_ADDRESS,
     effective_mac,
@@ -232,13 +233,24 @@ class BatoceraOptionsFlow(config_entries.OptionsFlow):
                     except ValueError:
                         errors["wol_broadcast"] = "invalid_broadcast"
                     else:
-                        updated = {**self._config_entry.options, CONF_HOSTNAME: hostname}
-                        updated["wol_broadcast"] = broadcast
-                        if mac:
-                            updated[CONF_MAC] = mac.lower()
+                        ssh_port = user_input.get("ssh_port", 22)
+                        key = user_input.get("ssh_key_path", DEFAULT_SSH_KEY).strip()
+                        hosts = user_input.get("ssh_known_hosts", DEFAULT_KNOWN_HOSTS).strip()
+                        enabled = user_input.get("power_enabled", False)
+                        if enabled and (not key or not hosts):
+                            errors["base"] = "missing_ssh_files"
                         else:
-                            updated.pop(CONF_MAC, None)
-                        return self.async_create_entry(title="", data=updated)
+                            updated = {**self._config_entry.options, CONF_HOSTNAME: hostname}
+                            updated["wol_broadcast"] = broadcast
+                            updated["power_enabled"] = enabled
+                            updated["ssh_port"] = ssh_port
+                            updated["ssh_key_path"] = key
+                            updated["ssh_known_hosts"] = hosts
+                            if mac:
+                                updated[CONF_MAC] = mac.lower()
+                            else:
+                                updated.pop(CONF_MAC, None)
+                            return self.async_create_entry(title="", data=updated)
         default = (
             self._config_entry.options.get(CONF_HOSTNAME)
             or self._config_entry.data.get(CONF_HOSTNAME)
@@ -250,6 +262,10 @@ class BatoceraOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_HOSTNAME, default=default): str,
                 vol.Optional(CONF_MAC, default=effective_mac(self._config_entry) or ""): str,
                 vol.Required("wol_broadcast", default=self._config_entry.options.get("wol_broadcast", DEFAULT_BROADCAST_ADDRESS)): str,
+                vol.Optional("power_enabled", default=self._config_entry.options.get("power_enabled", False)): bool,
+                vol.Required("ssh_port", default=self._config_entry.options.get("ssh_port", 22)): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                vol.Optional("ssh_key_path", default=self._config_entry.options.get("ssh_key_path", DEFAULT_SSH_KEY)): str,
+                vol.Optional("ssh_known_hosts", default=self._config_entry.options.get("ssh_known_hosts", DEFAULT_KNOWN_HOSTS)): str,
             }),
             errors=errors,
         )
