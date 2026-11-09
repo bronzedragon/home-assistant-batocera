@@ -29,15 +29,17 @@
   "options": {
     "step": {
       "init": {
-        "title": "Batocera hostname",
-        "description": "Set the ASCII hostname used as the Home Assistant device/entity naming base. The mDNS display name remains the integration title.",
+        "title": "Batocera identity and Wake-on-LAN",
+        "description": "Configure the ASCII hostname used for entities and the persistent MAC used to wake Batocera while it is powered off. The mDNS display title remains independent.",
         "data": {
-          "hostname": "Entity hostname"
+          "hostname": "Entity hostname",
+          "mac": "Wake-on-LAN MAC address (optional)"
         }
       }
     },
     "error": {
-      "invalid_hostname": "Enter a single ASCII hostname using letters, digits, and hyphens."
+      "invalid_hostname": "Enter a single ASCII hostname using letters, digits, and hyphens.",
+      "invalid_mac": "Enter a valid unicast MAC address (for example, 3c:52:82:63:12:63)."
     }
   }
 }
