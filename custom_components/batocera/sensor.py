@@ -7,6 +7,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .naming import entity_device_name
+from .wol import effective_discovery_value
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -49,7 +50,7 @@ class BatoceraDiagnosticSensor(SensorEntity):
 
     @property
     def native_value(self):
-        return self._entry.data.get(self._key)
+        return effective_discovery_value(self._entry, self._key)
 
     @property
     def available(self):
@@ -76,6 +77,8 @@ class BatoceraSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data
+        if not data:
+            return None
         game = data["running_game"] or {}
         if self._key == "state":
             return "playing" if game else "idle" if data["idle"] else "busy"
@@ -94,6 +97,8 @@ class BatoceraSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return None
         if self._key == "system_count":
             return {
                 "consoles": [
