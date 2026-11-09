@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import socket
 
 from homeassistant.components.button import ButtonEntity
@@ -11,18 +10,10 @@ from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN
 from .naming import entity_device_name
+from .wol import effective_mac, valid_wol_mac
 
-_MAC_RE = re.compile(r"^(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
 _BROADCAST_ADDRESS = "255.255.255.255"
 _BROADCAST_PORT = 9
-
-
-def valid_wol_mac(mac: object) -> bool:
-    """Require a real, unicast six-byte MAC address."""
-    if not isinstance(mac, str) or not _MAC_RE.fullmatch(mac):
-        return False
-    raw = bytes.fromhex(mac.replace(":", ""))
-    return raw != b"\x00" * 6 and not (raw[0] & 1)
 
 
 def send_magic_packet(mac: str) -> None:
@@ -63,7 +54,7 @@ class BatoceraWakeButton(ButtonEntity):
     def available(self) -> bool:
         """Require valid stored MAC; explicit lack of WoL support disables."""
         return (
-            valid_wol_mac(self._entry.data.get("mac"))
+            effective_mac(self._entry) is not None
             and self._entry.data.get("wol_supported") != "false"
         )
 
@@ -75,7 +66,7 @@ class BatoceraWakeButton(ButtonEntity):
             )
         try:
             await self._hass.async_add_executor_job(
-                send_magic_packet, self._entry.data["mac"]
+                send_magic_packet, effective_mac(self._entry)
             )
         except OSError as err:
             raise HomeAssistantError(
