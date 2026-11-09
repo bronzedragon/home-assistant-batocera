@@ -9,13 +9,13 @@ cp "$root/development-assets/scripts/batocera_mdns" "$tmp/batocera_mdns"
 
 [[ "$(bash "$tmp/batocera_mdns" display-name)" == "$(hostname)" ]]
 
-printf '%s\\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
+printf '%s\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
 [[ "$(bash "$tmp/batocera_mdns" display-name)" == "銀龍's Emulation Box" ]]
 
 : > "$tmp/DISPLAY_NAME"
 [[ "$(bash "$tmp/batocera_mdns" display-name)" == "$(hostname)" ]]
 
-printf '\\xef\\xbb\\xbf%s\\r\\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
+printf '\xef\xbb\xbf%s\r\n' "銀龍's Emulation Box" > "$tmp/DISPLAY_NAME"
 [[ "$(bash "$tmp/batocera_mdns" display-name)" == "銀龍's Emulation Box" ]]
 
 echo "Display-name tests passed"
