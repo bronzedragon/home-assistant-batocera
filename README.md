@@ -4,7 +4,7 @@
 
 Custom Home Assistant integration for Batocera's EmulationStation HTTP API.
 
-**v0.2.2 development preview (read-only)** — active-game monitoring verified with Batocera 43.1; browse feature still needs live Home Assistant testing.
+**v0.3.0 development preview (read-only)** — active-game monitoring verified with Batocera 43.1; browse feature still needs live Home Assistant testing.
 
 ### v0.1.1 compatibility fix
 Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is active. Earlier versions of this integration treated that response as an API error and marked all entities unavailable. The client now accepts both 200 and 201 for `/isIdle`, while separately handling the `NO GAME RUNNING` response from `/runningGame`.
@@ -12,9 +12,12 @@ Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is ac
 ## Release history
 - **v0.2.0:** On-demand console and game browser.
 - **v0.2.1:** Repository cleanup and icon placement. This published tag contains manifest version 0.2.0, an existing versioning discrepancy; do not rewrite the published tag.
-- **v0.2.2 (planned):** Align manifest, docs, and release version while retaining the corrected brand assets.
+- **v0.2.2:** Release metadata and branding maintenance.
+- **v0.3.0 (development):** Zeroconf/Avahi discovery and MAC/WoL metadata capture.
 
 ## Features
+- Discover Avahi-advertised Batocera machines via `_batocera._tcp.local.` and confirm setup in Home Assistant
+- Retain discovered MAC, hardware model, architecture, interface and WoL capability in configuration data
 - Console selection and on-demand game lists through Home Assistant select entities
 - Game selection and a metadata sensor with description, release date, genre, developer, rating, favorites, play history, and media URLs
 - Configuration flow for a Batocera host and port (default TCP 1234)
@@ -28,6 +31,12 @@ Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is ac
 Add `https://github.com/bronzedragon/home-assistant-batocera` as a **custom integration repository** in HACS, or under **Settings → Marketplace** in Home Assistant 2026.11+. Download it, restart Home Assistant, and add **Batocera Linux** under Settings → Devices & services.
 
 The integration is **not yet in the default catalog**. HACS and Hassfest checks are passing, but default catalog inclusion still requires submission and review.
+
+## Automatic discovery (v0.3.0)
+
+Run the Batocera Avahi publisher script advertising `_batocera._tcp` on TCP 1234 with `api=emulationstation`, an actual NIC `mac`, and the dynamic `wol`, `wol_supported`, `wol_modes`, `model`, `arch`, and `interface` TXT records. Home Assistant needs Zeroconf enabled and mDNS visibility between it and Batocera. The integration verifies `/caps` before showing a **Discovered** configuration prompt; the user must confirm to add a new device. Entries configured with the same IP or matching mDNS hostname are reconciled without creating a second entry. For existing manual configurations whose IP and hostname have both changed, identity matching may require manual intervention.
+
+Discovered MAC and WoL fields are stored for future power controls; this release does **not** send wake packets or change NIC settings. The script reports the default IPv4 route's interface, which is not necessarily WoL-capable; only advertise a WoL-capable NIC if it is the intended wake target. TXT data is unauthenticated and valid only on a trusted LAN.
 
 ## Install manually
 Copy `custom_components/batocera` into Home Assistant's `/config/custom_components/`, restart Home Assistant, and add Batocera Linux.
