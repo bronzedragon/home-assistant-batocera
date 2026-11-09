@@ -15,6 +15,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import BatoceraApi, BatoceraApiError
 from .const import DEFAULT_PORT, DOMAIN
+from .naming import CONF_HOSTNAME, fallback_hostname, normalized_hostname
 
 CONF_MAC = "mac"
 CONF_WOL = "wol"
@@ -74,7 +75,13 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
             port = user_input[CONF_PORT]
-            if not host or not await self._check_api(host, port):
+            try:
+                hostname = normalized_hostname(user_input.get(CONF_HOSTNAME) or fallback_hostname(host))
+            except ValueError:
+                errors[CONF_HOSTNAME] = "invalid_hostname"
+            if errors:
+                pass
+            elif not host or not await self._check_api(host, port):
                 errors["base"] = "cannot_connect"
             else:
                 for entry in self._async_current_entries():
@@ -85,13 +92,14 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=f"Batocera ({host})",
-                    data={CONF_HOST: host, CONF_PORT: port},
+                    data={CONF_HOST: host, CONF_PORT: port, CONF_HOSTNAME: hostname},
                 )
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
                 vol.Required(CONF_HOST, default="batocera.local"): str,
+                vol.Optional(CONF_HOSTNAME): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=65535)
                 ),
@@ -130,7 +138,13 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not display_name:
             return self.async_abort(reason="invalid_discovery")
 
+        try:
+            hostname = normalized_hostname(discovery_info.hostname)
+        except ValueError:
+            hostname = fallback_hostname(host)
+
         details = {
+            CONF_HOSTNAME: hostname,
             CONF_DISCOVERY_NAME: display_name,
             CONF_HOST: host,
             CONF_PORT: port,
@@ -163,6 +177,11 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovered_title = display_name
         return await self.async_step_discovery_confirm()
 
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        """Allow users to override the entity naming hostname."""
+        return BatoceraOptionsFlow(config_entry)
+
     async def async_step_discovery_confirm(self, user_input=None):
         """Require a user confirmation; discovery never auto-creates entries."""
         if user_input is not None:
@@ -179,4 +198,34 @@ class BatoceraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "model": self._discovered_data.get(CONF_MODEL, "Batocera"),
                 "wol": self._discovered_data.get(CONF_WOL, "unknown"),
             },
+        )
+
+
+class BatoceraOptionsFlow(config_entries.OptionsFlow):
+    """Edit the ASCII hostname without changing the Unicode integration title."""
+
+    def __init__(self, config_entry):
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            try:
+                hostname = normalized_hostname(user_input[CONF_HOSTNAME])
+            except ValueError:
+                errors[CONF_HOSTNAME] = "invalid_hostname"
+            else:
+                return self.async_create_entry(
+                    title="",
+                    data={**self._config_entry.options, CONF_HOSTNAME: hostname},
+                )
+        default = (
+            self._config_entry.options.get(CONF_HOSTNAME)
+            or self._config_entry.data.get(CONF_HOSTNAME)
+            or fallback_hostname(self._config_entry.data[CONF_HOST])
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({vol.Required(CONF_HOSTNAME, default=default): str}),
+            errors=errors,
         )
