@@ -17,6 +17,19 @@ These are **Batocera-side development/deployment assets**, not part of the Home 
 | `wol_supported` | `true`, `false` or `unknown` |
 | `wol_modes` | Supported wake modes reported by `ethtool` |
 
+### Optional Unicode display name
+
+Create a UTF-8 plain-text file named `DISPLAY_NAME` **in the same directory as the installed `batocera_mdns` script**. The first line is used *exactly* as the mDNS service instance label, including Unicode characters, spaces, and apostrophes. Do **not** put shell quotes around the text.
+
+```bash
+printf '%s\\n' "銀龍's Emulation Box" > /userdata/system/services/DISPLAY_NAME
+/userdata/system/services/batocera_mdns display-name
+batocera-services stop batocera_mdns
+batocera-services start batocera_mdns
+```
+
+If `DISPLAY_NAME` is absent or empty, the publisher advertises the **Linux hostname** as the service instance name. This does not alter the actual mDNS/DNS hostname or Home Assistant's separate ASCII-safe entity hostname field. Restart the publisher after changing the file; the displayed name is not reloaded automatically.
+
 ### Prerequisites
 
 Batocera v38+ user services, running `avahi-daemon`, and `avahi-publish-service`. `ethtool` is optional; without it the WoL status remains `unknown`. In EmulationStation, enable **Public Web Access** for the HTTP API. Use only on a trusted network: the API and mDNS TXT metadata are unauthenticated.
