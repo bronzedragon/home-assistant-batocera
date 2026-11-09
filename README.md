@@ -25,6 +25,7 @@ Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is ac
 - Version, system state, current game, current console
 - Console and game counts with automatic collections excluded
 - API connectivity binary sensor
+- Wake Batocera button using stored mDNS MAC and UDP magic packets (port 9)
 - 30-second shared polling with cached system metadata
 
 ## Install from HACS or Home Assistant Marketplace
@@ -83,6 +84,15 @@ After mDNS discovery, the Batocera device exposes these **Diagnostic** entities,
 | Wake-on-LAN Enabled | Binary sensor | Cached `wol` |
 
 These values are **snapshots of the most recently processed advertisement**, not live NIC readings. Diagnostic entities remain available when the EmulationStation API is offline, so long as cached metadata is present. Missing or unknown values appear unavailable rather than claiming WoL is disabled. Home Assistant may hide diagnostic entities from the main Sensors card; find them on the Batocera device under **Diagnostic**, or in **Entities**. After changing discovery details, reload/restart the integration to refresh entity states. None of these entities send a magic packet or alter WoL settings.
+
+
+## Wake Batocera button
+
+A **Wake Batocera** button is available on the device when a valid unicast MAC address is stored from mDNS discovery and WoL support is not explicitly reported as `false`. Pressing it broadcasts a standard magic packet to `255.255.255.255:9` directly from Home Assistant. It does **not** require the target's EmulationStation API, SSH, or the separate Home Assistant Wake on LAN integration. There are no new Python dependencies.
+
+The button is **stateless**: successfully sending a UDP packet does not prove that Batocera woke. Actual wake behavior depends on adapter configuration, BIOS/UEFI power settings, whether the host is asleep or fully shut down, and LAN broadcast forwarding. Standard IP broadcasts generally will not cross routed networks. WoL information reflects the last advertisement, not the device's state after shutdown.
+
+Manual configurations without a discovered MAC cannot wake until mDNS has populated that metadata. The button is unavailable for missing/invalid MAC addresses or when discovery explicitly reports WoL unsupported. A reported `wol=disabled` is not silently treated as enabled; users should enable WoL on the target before relying on wake functionality.
 
 ## Planned
 Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
