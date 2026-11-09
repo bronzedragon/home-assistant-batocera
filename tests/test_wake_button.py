@@ -116,7 +116,24 @@ class WakeButtonTests(unittest.IsolatedAsyncioTestCase):
         button = wake.BatoceraWakeButton(hass, entry)
         self.assertTrue(button.available)
         await button.async_press()
-        self.assertEqual(hass.calls, [(wake.send_magic_packet, ("3c:52:82:63:12:63",))])
+        self.assertEqual(hass.calls, [(wake.send_magic_packet, ("3c:52:82:63:12:63", "255.255.255.255"))])
+
+    async def test_configured_subnet_broadcast_used(self):
+        hass = FakeHass()
+        entry = types.SimpleNamespace(
+            entry_id="abc", unique_id=None, data={"mac": "3c:52:82:63:12:63"},
+            options={"wol_broadcast": "10.8.76.255"},
+        )
+        button = wake.BatoceraWakeButton(hass, entry)
+        await button.async_press()
+        self.assertEqual(
+            hass.calls,
+            [(wake.send_magic_packet, ("3c:52:82:63:12:63", "10.8.76.255"))],
+        )
+        sock = MockSocket()
+        with patch.object(wake.socket, "socket", return_value=sock):
+            wake.send_magic_packet("3c:52:82:63:12:63", "10.8.76.255")
+        self.assertEqual(sock.sent[0][1], ("10.8.76.255", 9))
 
     async def test_no_mac_or_unsupported_disables_button(self):
         for data in ({}, {"mac": "3c:52:82:63:12:63", "wol_supported": "false"}):
