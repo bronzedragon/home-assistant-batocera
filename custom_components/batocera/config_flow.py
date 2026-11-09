@@ -16,7 +16,12 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from .api import BatoceraApi, BatoceraApiError
 from .const import DEFAULT_PORT, DOMAIN
 from .naming import CONF_HOSTNAME, fallback_hostname, normalized_hostname
-from .wol import effective_mac, valid_wol_mac
+from .wol import (
+    DEFAULT_BROADCAST_ADDRESS,
+    effective_mac,
+    normalize_broadcast_address,
+    valid_wol_mac,
+)
 
 CONF_MAC = "mac"
 CONF_WOL = "wol"
@@ -220,12 +225,20 @@ class BatoceraOptionsFlow(config_entries.OptionsFlow):
                 if mac and not valid_wol_mac(mac):
                     errors[CONF_MAC] = "invalid_mac"
                 else:
-                    updated = {**self._config_entry.options, CONF_HOSTNAME: hostname}
-                    if mac:
-                        updated[CONF_MAC] = mac.lower()
+                    try:
+                        broadcast = normalize_broadcast_address(
+                            user_input.get("wol_broadcast", DEFAULT_BROADCAST_ADDRESS)
+                        )
+                    except ValueError:
+                        errors["wol_broadcast"] = "invalid_broadcast"
                     else:
-                        updated.pop(CONF_MAC, None)
-                    return self.async_create_entry(title="", data=updated)
+                        updated = {**self._config_entry.options, CONF_HOSTNAME: hostname}
+                        updated["wol_broadcast"] = broadcast
+                        if mac:
+                            updated[CONF_MAC] = mac.lower()
+                        else:
+                            updated.pop(CONF_MAC, None)
+                        return self.async_create_entry(title="", data=updated)
         default = (
             self._config_entry.options.get(CONF_HOSTNAME)
             or self._config_entry.data.get(CONF_HOSTNAME)
@@ -236,6 +249,7 @@ class BatoceraOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema({
                 vol.Required(CONF_HOSTNAME, default=default): str,
                 vol.Optional(CONF_MAC, default=effective_mac(self._config_entry) or ""): str,
+                vol.Required("wol_broadcast", default=self._config_entry.options.get("wol_broadcast", DEFAULT_BROADCAST_ADDRESS)): str,
             }),
             errors=errors,
         )
