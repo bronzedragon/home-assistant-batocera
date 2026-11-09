@@ -88,7 +88,7 @@ These values are **snapshots of the most recently processed advertisement**, not
 
 ## Wake Batocera button
 
-A **Wake Batocera** button is available on the device when a valid unicast MAC address is stored from mDNS discovery and WoL support is not explicitly reported as `false`. Pressing it broadcasts a standard magic packet to `255.255.255.255:9` directly from Home Assistant. It does **not** require the target's EmulationStation API, SSH, or the separate Home Assistant Wake on LAN integration. There are no new Python dependencies.
+A **Wake Batocera** button is available on the device when a valid unicast MAC address is stored from mDNS discovery and WoL support is not explicitly reported as `false`. Pressing it broadcasts a standard magic packet over UDP port 9 from Home Assistant. The default destination is `255.255.255.255:9`; the integration options also allow a subnet-specific broadcast address such as `10.8.76.255` for a `10.8.76.0/24` network. It does **not** require the target's EmulationStation API, SSH, or the separate Home Assistant Wake on LAN integration. There are no new Python dependencies.
 
 The button is **stateless**: successfully sending a UDP packet does not prove that Batocera woke. Actual wake behavior depends on adapter configuration, BIOS/UEFI power settings, whether the host is asleep or fully shut down, and LAN broadcast forwarding. Standard IP broadcasts generally will not cross routed networks. WoL information reflects the last advertisement, not the device's state after shutdown.
 
@@ -99,12 +99,12 @@ Manual configurations without a discovered MAC cannot wake until mDNS has popula
 
 The Wake button must load even if Batocera is **powered off during a Home Assistant restart**. The integration now starts its normal API polling without requiring a successful initial HTTP request. Game sensors remain unavailable until the API responds, while wake and cached diagnostics can still load.
 
-For a missing MAC, open **Settings → Devices & services → Batocera Linux → Configure** and enter the host's known **Wake-on-LAN MAC address**. This stores it in the config entry **options** independently of Zeroconf discovery and does **not** require Batocera to be running. A valid discovery MAC or MAC-based config entry unique ID can also be reused automatically. The effective MAC (options, discovery data, then unique ID) is used by both the wake button and MAC diagnostic sensor; a discovery refresh must not erase the override. The integration's API host and Unicode display name are unchanged.
+For a missing MAC, open **Settings → Devices & services → Batocera Linux → Configure** and enter the host's known **Wake-on-LAN MAC address**. You can also set **Wake-on-LAN broadcast address** (for example, `10.8.76.255` on a `10.8.76.0/24` network). This stores the settings in the config entry **options** independently of Zeroconf discovery and does **not** require Batocera to be running. A valid discovery MAC or MAC-based config entry unique ID can also be reused automatically. The effective MAC (options, discovery data, then unique ID) is used by both the wake button and MAC diagnostic sensor; a discovery refresh must not erase the override. The integration's API host and Unicode display name are unchanged.
 
 Example recovery for an HP EliteDesk that previously advertised `3c:52:82:63:12:63`: set that address in the Configure form, save, and press Wake Batocera. This does not guarantee wake from a shutdown state; firmware and the network must still permit WoL. Never edit `core.config_entries` manually.
 
 ## Planned
-Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
+Artwork proxy and graphical library card; launch and stop controls; SSH power management.
 
 No ROM files or copyrighted game assets are distributed by this project.
 
