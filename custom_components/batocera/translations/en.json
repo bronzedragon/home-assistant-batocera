@@ -8,13 +8,20 @@
           "host": "IP address or hostname",
           "port": "EmulationStation API port"
         }
+      },
+      "discovery_confirm": {
+        "title": "Batocera discovered",
+        "description": "Confirm Batocera at {host}:{port}. Hardware: {model}. Wake-on-LAN: {wol}."
       }
     },
     "error": {
       "cannot_connect": "Cannot connect to the Batocera EmulationStation API."
     },
     "abort": {
-      "already_configured": "This Batocera host is already configured."
+      "already_configured": "This Batocera host is already configured.",
+      "cannot_connect": "The discovered Batocera API is not reachable.",
+      "not_batocera": "The advertised device does not identify as Batocera.",
+      "invalid_discovery": "The Batocera advertisement is missing valid network or MAC information."
     }
   }
 }
