@@ -59,6 +59,13 @@ EmulationStation may expose thousands of games for a console; this integration r
 
 Non-installable project scripts and artwork are organized in [`development-assets/`](development-assets/), with separate [`scripts/`](development-assets/scripts/) and [`images/`](development-assets/images/) directories. These are not deployed by HACS; integration branding remains in `custom_components/batocera/brand/`.
 
+
+## Display name versus entity hostname
+
+The mDNS **service instance display name** (including Unicode, for example `銀龍`) is used for the Home Assistant **integration title**. The separate **hostname** setting is a single ASCII DNS label and is used as the Home Assistant device name / suggested entity naming prefix. Zeroconf discovery fills it from the SRV hostname (for example `ginryuu.local.` becomes `ginryuu`), never from the translated or Unicode service display label. For manual setup, the optional hostname field defaults to a safe name derived from the connection host.
+
+To change it after setup, open **Settings → Devices & services → Batocera → Configure (Options)** and edit **Entity hostname**; an integration reload applies the new device name. Existing entity registry IDs and user-renamed devices/entities are retained by Home Assistant and may need manual renaming; this deliberately avoids breaking dashboards and automations. The connection address, mDNS display title, and stable integration/entity unique IDs do not change when the hostname option changes.
+
 ## Planned
 Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
 
