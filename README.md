@@ -4,10 +4,15 @@
 
 Custom Home Assistant integration for Batocera's EmulationStation HTTP API.
 
-**v0.2.0 development preview (read-only)** — active-game monitoring verified with Batocera 43.1; browse feature still needs live Home Assistant testing.
+**v0.2.2 development preview (read-only)** — active-game monitoring verified with Batocera 43.1; browse feature still needs live Home Assistant testing.
 
 ### v0.1.1 compatibility fix
 Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is active. Earlier versions of this integration treated that response as an API error and marked all entities unavailable. The client now accepts both 200 and 201 for `/isIdle`, while separately handling the `NO GAME RUNNING` response from `/runningGame`.
+
+## Release history
+- **v0.2.0:** On-demand console and game browser.
+- **v0.2.1:** Repository cleanup and icon placement. This published tag contains manifest version 0.2.0, an existing versioning discrepancy; do not rewrite the published tag.
+- **v0.2.2 (planned):** Align manifest, docs, and release version while retaining the corrected brand assets.
 
 ## Features
 - Console selection and on-demand game lists through Home Assistant select entities
@@ -22,7 +27,7 @@ Batocera 43 can return HTTP 201 with `[false]` from `/isIdle` while a game is ac
 
 Add `https://github.com/bronzedragon/home-assistant-batocera` as a **custom integration repository** in HACS, or under **Settings → Marketplace** in Home Assistant 2026.11+. Download it, restart Home Assistant, and add **Batocera Linux** under Settings → Devices & services.
 
-The integration is **not yet in the default catalog**. Default catalog submission requires passing HACS and Hassfest checks, published GitHub release, and catalog review.
+The integration is **not yet in the default catalog**. HACS and Hassfest checks are passing, but default catalog inclusion still requires submission and review.
 
 ## Install manually
 Copy `custom_components/batocera` into Home Assistant's `/config/custom_components/`, restart Home Assistant, and add Batocera Linux.
@@ -48,4 +53,4 @@ No ROM files or copyrighted game assets are distributed by this project.
 
 ## Integration icon
 
-Home Assistant 2026.3+ loads custom integration branding from `custom_components/batocera/brand/`. The icon package provides `icon.png` (256 × 256) and `icon@2x.png` (512 × 512). These binary assets must be added to the repository and included in the next release to appear in Home Assistant. A missing Marketplace/HACS listing icon does not necessarily mean Home Assistant's installed integration icon is missing.
+Home Assistant 2026.3+ loads custom integration branding from `custom_components/batocera/brand/`. The icon package provides `icon.png` (256 × 256) and `icon@2x.png` (512 × 512). These image assets are included under the canonical integration path. A missing Marketplace/HACS listing icon does not necessarily mean Home Assistant's installed integration icon is missing.
