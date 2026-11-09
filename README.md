@@ -103,6 +103,33 @@ For a missing MAC, open **Settings → Devices & services → Batocera Linux →
 
 Example recovery for an HP EliteDesk that previously advertised `3c:52:82:63:12:63`: set that address in the Configure form, save, and press Wake Batocera. This does not guarantee wake from a shutdown state; firmware and the network must still permit WoL. Never edit `core.config_entries` manually.
 
+
+## SSH shutdown and restart (development)
+
+Two additional per-device buttons are available: **Shutdown Batocera** and **Restart Batocera**. They are **disabled by default**. The integration uses authenticated SSH to invoke Batocera's native `batocera-es-swissknife --shutdown` and `--reboot` commands, not generic `poweroff` or `reboot`. The Wake button continues to use independent UDP WoL.
+
+### Secure setup
+
+1. On the Home Assistant **host/container** (where the integration runs), create a dedicated unencrypted SSH key and verify the permissions. Example for a host that exposes its HA configuration directory at `/config`:
+
+   ```bash
+   mkdir -p /config/.ssh
+   chmod 700 /config/.ssh
+   ssh-keygen -t ed25519 -f /config/.ssh/id_ed25519 -N ''
+   chmod 600 /config/.ssh/id_ed25519
+   ```
+
+2. Copy the contents of `/config/.ssh/id_ed25519.pub` into Batocera's `/userdata/system/.ssh/authorized_keys` (root user's SSH keys). Batocera documents passwordless root SSH and its separate user-data persistence mechanism. Avoid committing keys to the repository.
+3. Obtain and **verify** the Batocera SSH **host-key fingerprint** by a separate trusted channel, then add the trusted public host key for the Batocera connection address to `/config/.ssh/known_hosts`. For example, `ssh-keyscan -t ed25519 10.8.76.244` retrieves a candidate key but **does not verify its authenticity**. Do not blindly trust an unauthenticated scan. Use mode 600 on the known_hosts file.
+4. Open **Settings → Devices & services → Batocera Linux → Configure**. Set **Enable SSH shutdown and restart**, the SSH port (default `22`), the key path (default `/config/.ssh/id_ed25519`), and the known_hosts path (default `/config/.ssh/known_hosts`).
+5. Verify key-based login from Home Assistant's runtime network to the correct Batocera machine before invoking the new buttons.
+
+### Safety and behavior
+
+The buttons **require opt-in** and are available only when the EmulationStation API is online, reports **idle**, and reports **no game running**. If the API is unavailable or the machine is playing a game, the buttons remain unavailable. This avoids interrupting active gameplay, but other applications or background writes can still be active: take appropriate care. SSH host-key verification is mandatory; the integration will not silently disable it. Commands are fixed strings; arbitrary shell commands are not accepted. Both actions target only the selected integration entry's host and SSH settings.
+
+**Home Assistant's entity-page button does not provide an extra confirmation dialog.** For dashboards, configure a confirmation prompt for these buttons before making them readily accessible. SSH command acceptance means the power request was scheduled, not that a reboot/shutdown has completed. An incorrect key, missing known_hosts entry, SSH network restriction or rejected command will result in an error. SSH power controls cannot be used to start an offline host; that remains the Wake button's job.
+
 ## Planned
 Artwork proxy and graphical library card; launch and stop controls; SSH power management.
 
