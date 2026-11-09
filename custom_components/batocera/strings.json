@@ -6,7 +6,8 @@
         "description": "Enable Public Web Access on your trusted Batocera LAN before connecting.",
         "data": {
           "host": "IP address or hostname",
-          "port": "EmulationStation API port"
+          "port": "EmulationStation API port",
+          "hostname": "Hostname for entity names (ASCII; optional)"
         }
       },
       "discovery_confirm": {
@@ -15,13 +16,28 @@
       }
     },
     "error": {
-      "cannot_connect": "Cannot connect to the Batocera EmulationStation API."
+      "cannot_connect": "Cannot connect to the Batocera EmulationStation API.",
+      "invalid_hostname": "Enter a single ASCII hostname using letters, digits, and hyphens."
     },
     "abort": {
       "already_configured": "This Batocera host is already configured.",
       "cannot_connect": "The discovered Batocera API is not reachable.",
       "not_batocera": "The advertised device does not identify as Batocera.",
       "invalid_discovery": "The Batocera advertisement is missing valid network or MAC information."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Batocera hostname",
+        "description": "Set the ASCII hostname used as the Home Assistant device/entity naming base. The mDNS display name remains the integration title.",
+        "data": {
+          "hostname": "Entity hostname"
+        }
+      }
+    },
+    "error": {
+      "invalid_hostname": "Enter a single ASCII hostname using letters, digits, and hyphens."
     }
   }
 }
