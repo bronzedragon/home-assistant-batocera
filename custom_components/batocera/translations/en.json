@@ -30,18 +30,23 @@
     "step": {
       "init": {
         "title": "Batocera identity and Wake-on-LAN",
-        "description": "Configure the ASCII entity hostname, MAC address for offline wake, and UDP broadcast destination. The Unicode mDNS display title stays independent.",
+        "description": "Configure identity, Wake-on-LAN, and optional SSH power buttons. Shutdown/Restart only work when Batocera is online and idle; verify your host key and use a dedicated SSH key.",
         "data": {
           "hostname": "Entity hostname",
           "mac": "Wake-on-LAN MAC address (optional)",
-          "wol_broadcast": "Wake-on-LAN broadcast address"
+          "wol_broadcast": "Wake-on-LAN broadcast address",
+          "power_enabled": "Enable SSH shutdown and restart (requires trusted key)",
+          "ssh_port": "SSH port",
+          "ssh_key_path": "SSH private key path in Home Assistant",
+          "ssh_known_hosts": "SSH known_hosts file path"
         }
       }
     },
     "error": {
       "invalid_hostname": "Enter a single ASCII hostname using letters, digits, and hyphens.",
       "invalid_mac": "Enter a valid unicast MAC address (for example, 3c:52:82:63:12:63).",
-      "invalid_broadcast": "Enter a valid IPv4 broadcast destination (for example, 10.8.76.255)."
+      "invalid_broadcast": "Enter a valid IPv4 broadcast destination (for example, 10.8.76.255).",
+      "missing_ssh_files": "Specify SSH private key and known_hosts paths to enable power controls."
     }
   }
 }
