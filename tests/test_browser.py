@@ -41,6 +41,15 @@ class Coordinator:
                 {"name": "snes", "fullname": "Super Nintendo Entertainment System"},
             ]
         }
+        # Simulate a grouping scenario where the count-only catalog omits
+        # NES, but raw browsing data still exposes the NES group.
+        self.data["browsable_systems"] = [
+            {"name": "fds", "fullname": "Family Computer Disk System",
+             "groupsystem": "false", "totalGames": 8},
+            {"name": "nes", "fullname": "Nintendo Entertainment System",
+             "groupsystem": "true", "totalGames": 100},
+            {"name": "snes", "fullname": "Super Nintendo Entertainment System"},
+        ]
         self.api = types.SimpleNamespace(
             games=AsyncMock(return_value=[
                 {"id": "id1", "name": "Super Mario Bros. 3", "genre": "Platform"},
@@ -58,6 +67,13 @@ class BrowserTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.coordinator = Coordinator()
         self.browser = module.BatoceraBrowser(self.coordinator)
+
+    async def test_grouped_nes_available_as_console_option(self):
+        self.assertIn("Family Computer Disk System (fds)", self.browser.console_options)
+        self.assertIn("Nintendo Entertainment System (nes)", self.browser.console_options)
+        await self.browser.choose_console("Nintendo Entertainment System (nes)")
+        self.coordinator.api.games.assert_awaited_once_with("nes")
+        self.assertIn("Super Mario Bros. 3", self.browser.game_options)
 
     async def test_loads_games_only_after_select(self):
         self.assertEqual(self.browser.game_options, [])
