@@ -143,6 +143,29 @@ class WakeButtonTests(unittest.IsolatedAsyncioTestCase):
             wake.send_magic_packet("3c:52:82:63:12:63", "10.8.76.255")
         self.assertEqual(sock.sent[0][1], ("10.8.76.255", 9))
 
+    async def test_power_buttons_require_online_idle_state(self):
+        coordinator = types.SimpleNamespace(
+            data={"idle": True, "running_game": None},
+            last_update_success=True,
+        )
+        entry = types.SimpleNamespace(
+            entry_id="test", data={}, options={}, runtime_data=coordinator
+        )
+        shutdown = wake.BatoceraPowerButton(entry, "shutdown")
+        restart = wake.BatoceraPowerButton(entry, "reboot")
+        with patch.object(wake, "settings_ready", return_value=True):
+            self.assertTrue(shutdown.available)
+            self.assertTrue(restart.available)
+            coordinator.data["running_game"] = {"name": "Super Mario Bros. 3"}
+            self.assertFalse(shutdown.available)
+            self.assertFalse(restart.available)
+            coordinator.data["running_game"] = None
+            coordinator.data["idle"] = False
+            self.assertFalse(shutdown.available)
+            coordinator.data["idle"] = True
+            coordinator.last_update_success = False
+            self.assertFalse(shutdown.available)
+
     async def test_no_mac_or_unsupported_disables_button(self):
         for data in ({}, {"mac": "3c:52:82:63:12:63", "wol_supported": "false"}):
             hass = FakeHass()
