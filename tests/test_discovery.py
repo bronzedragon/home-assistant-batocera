@@ -258,6 +258,31 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         entry.options = result["data"]
         self.assertEqual(wol_module.effective_mac(entry), "3c:52:82:63:12:63")
 
+    async def test_broadcast_option_is_stored(self):
+        entry = types.SimpleNamespace(
+            data={"host": "10.8.76.244", "hostname": "ginryuu"},
+            options={}, unique_id="3c:52:82:63:12:63",
+        )
+        flow = discovery.BatoceraConfigFlow.async_get_options_flow(entry)
+        result = await flow.async_step_init({
+            "hostname": "ginryuu",
+            "mac": "3c:52:82:63:12:63",
+            "wol_broadcast": "10.8.76.255",
+        })
+        self.assertEqual(result["data"]["wol_broadcast"], "10.8.76.255")
+
+    async def test_invalid_broadcast_option_is_rejected(self):
+        entry = types.SimpleNamespace(
+            data={"host": "10.8.76.244", "hostname": "ginryuu"},
+            options={}, unique_id=None,
+        )
+        flow = discovery.BatoceraConfigFlow.async_get_options_flow(entry)
+        result = await flow.async_step_init({
+            "hostname": "ginryuu",
+            "wol_broadcast": "not-an-ip",
+        })
+        self.assertEqual(result["errors"]["wol_broadcast"], "invalid_broadcast")
+
     async def test_invalid_offline_mac_rejected(self):
         entry = types.SimpleNamespace(
             data={"host": "10.8.76.244", "hostname": "ginryuu"},
