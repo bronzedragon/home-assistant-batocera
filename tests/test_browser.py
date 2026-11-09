@@ -84,6 +84,21 @@ class BrowserTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.browser.game_options), 3)
         self.assertEqual(self.browser.system_id, "nes")
 
+    async def test_game_titles_sorted_alphabetically_case_insensitive(self):
+        self.coordinator.api.games.return_value = [
+            {"id": "z", "name": "zelda"},
+            {"id": "b", "name": "Banjo"},
+            {"id": "a", "name": "animal crossing"},
+            {"id": "m", "name": "Mario"},
+        ]
+        await self.browser.choose_console("Nintendo Entertainment System (nes)")
+        self.assertEqual(
+            self.browser.game_options,
+            ["animal crossing", "Banjo", "Mario", "zelda"],
+        )
+        self.browser.choose_game("Mario")
+        self.assertEqual(self.browser.selected_game["id"], "m")
+
     async def test_duplicate_titles_are_selectable(self):
         await self.browser.choose_console("Nintendo Entertainment System (nes)")
         self.assertEqual(len(set(self.browser.game_options)), 3)
