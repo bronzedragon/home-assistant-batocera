@@ -18,6 +18,7 @@ def module(name):
 
 vol = module("voluptuous")
 vol.Required = lambda name, **kwargs: name
+vol.Optional = lambda name, **kwargs: name
 vol.Schema = lambda arg: arg
 vol.All = lambda *args: args
 vol.Coerce = lambda arg: arg
