@@ -5,11 +5,13 @@ from __future__ import annotations
 import socket
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN
 from .naming import entity_device_name
+from .power import power_settings, settings_ready, send_power_command
 from .wol import (
     effective_broadcast_address,
     effective_mac,
@@ -32,7 +34,11 @@ def send_magic_packet(mac: str, broadcast_address: str = "255.255.255.255") -> N
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Create a wake button for each Batocera config entry."""
-    async_add_entities([BatoceraWakeButton(hass, entry)])
+    async_add_entities([
+        BatoceraWakeButton(hass, entry),
+        BatoceraPowerButton(entry, "shutdown"),
+        BatoceraPowerButton(entry, "reboot"),
+    ])
 
 
 class BatoceraWakeButton(ButtonEntity):
@@ -76,4 +82,51 @@ class BatoceraWakeButton(ButtonEntity):
         except OSError as err:
             raise HomeAssistantError(
                 f"Could not broadcast Batocera Wake-on-LAN packet: {err}"
+            ) from err
+
+
+class BatoceraPowerButton(ButtonEntity):
+    """Explicitly enabled SSH shutdown/reboot action for one Batocera host."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry, action: str):
+        self._entry = entry
+        self._action = action
+        self._attr_name = "Shutdown Batocera" if action == "shutdown" else "Restart Batocera"
+        self._attr_icon = "mdi:power" if action == "shutdown" else "mdi:restart"
+        self._attr_unique_id = f"{entry.entry_id}_power_{action}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entity_device_name(entry),
+            manufacturer="Batocera",
+            model="EmulationStation",
+        )
+
+    @property
+    def available(self) -> bool:
+        """Avoid sending a power action while offline, in game, or unconfigured."""
+        if not settings_ready(self._entry):
+            return False
+        coordinator = self._entry.runtime_data
+        data = coordinator.data
+        return bool(
+            coordinator.last_update_success
+            and data
+            and data.get("idle") is True
+            and not data.get("running_game")
+        )
+
+    async def async_press(self) -> None:
+        """Perform system-aware action only when the host is idle."""
+        if not self.available:
+            raise HomeAssistantError(
+                "Batocera must be online and idle with SSH power management enabled"
+            )
+        try:
+            await send_power_command(self._entry, self._action)
+        except (OSError, ValueError, RuntimeError, TimeoutError) as err:
+            raise HomeAssistantError(
+                f"Unable to {self._action} Batocera over SSH: {err}"
             ) from err
