@@ -42,8 +42,19 @@ class BatoceraCoordinator(DataUpdateCoordinator[dict]):
                 and str(s.get("groupsystem", "false")).lower() != "true"
                 and str(s.get("gamesystem", "false")).lower() == "true"
             ]
+            # Browsing must include grouped console entries, such as NES when
+            # EmulationStation groups NES and Famicom Disk System together.
+            # Keep the existing count filter separate to avoid count changes.
+            browsable_systems = [
+                s for s in self._systems
+                if isinstance(s.get("name"), str) and s["name"]
+                and str(s.get("collection", "false")).lower() != "true"
+                and (int(s.get("totalGames", 0)) > 0
+                     or int(s.get("visibleGames", 0)) > 0)
+            ]
             return {
                 "version": caps["Version"],
+                "browsable_systems": browsable_systems,
                 "systems": actual_systems,
                 "system_count": len(actual_systems),
                 "game_count": sum(int(s.get("totalGames", 0)) for s in actual_systems),
