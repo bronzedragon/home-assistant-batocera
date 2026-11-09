@@ -18,9 +18,9 @@ def valid_wol_mac(mac: object) -> bool:
 def effective_mac(entry) -> str | None:
     """Prefer explicit override, then discovery data, then MAC-based unique ID."""
     for candidate in (
-        entry.options.get("mac"),
+        getattr(entry, "options", {}).get("mac"),
         entry.data.get("mac"),
-        entry.unique_id,
+        getattr(entry, "unique_id", None),
     ):
         if valid_wol_mac(candidate):
             return candidate.lower()
