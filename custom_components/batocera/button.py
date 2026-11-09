@@ -10,13 +10,16 @@ from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN
 from .naming import entity_device_name
-from .wol import effective_mac, valid_wol_mac
+from .wol import (
+    effective_broadcast_address,
+    effective_mac,
+    valid_wol_mac,
+)
 
-_BROADCAST_ADDRESS = "255.255.255.255"
 _BROADCAST_PORT = 9
 
 
-def send_magic_packet(mac: str) -> None:
+def send_magic_packet(mac: str, broadcast_address: str = "255.255.255.255") -> None:
     """Send a UDP broadcast WoL packet from the executor."""
     if not valid_wol_mac(mac):
         raise ValueError("A valid unicast MAC address is required")
@@ -24,7 +27,7 @@ def send_magic_packet(mac: str) -> None:
     packet = b"\xff" * 6 + raw * 16
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        sock.sendto(packet, (_BROADCAST_ADDRESS, _BROADCAST_PORT))
+        sock.sendto(packet, (broadcast_address, _BROADCAST_PORT))
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -66,7 +69,9 @@ class BatoceraWakeButton(ButtonEntity):
             )
         try:
             await self._hass.async_add_executor_job(
-                send_magic_packet, effective_mac(self._entry)
+                send_magic_packet,
+                effective_mac(self._entry),
+                effective_broadcast_address(self._entry)
             )
         except OSError as err:
             raise HomeAssistantError(
