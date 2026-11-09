@@ -94,6 +94,15 @@ The button is **stateless**: successfully sending a UDP packet does not prove th
 
 Manual configurations without a discovered MAC cannot wake until mDNS has populated that metadata. The button is unavailable for missing/invalid MAC addresses or when discovery explicitly reports WoL unsupported. A reported `wol=disabled` is not silently treated as enabled; users should enable WoL on the target before relying on wake functionality.
 
+
+### Offline MAC recovery and persistence
+
+The Wake button must load even if Batocera is **powered off during a Home Assistant restart**. The integration now starts its normal API polling without requiring a successful initial HTTP request. Game sensors remain unavailable until the API responds, while wake and cached diagnostics can still load.
+
+For a missing MAC, open **Settings → Devices & services → Batocera Linux → Configure** and enter the host's known **Wake-on-LAN MAC address**. This stores it in the config entry **options** independently of Zeroconf discovery and does **not** require Batocera to be running. A valid discovery MAC or MAC-based config entry unique ID can also be reused automatically. The effective MAC (options, discovery data, then unique ID) is used by both the wake button and MAC diagnostic sensor; a discovery refresh must not erase the override. The integration's API host and Unicode display name are unchanged.
+
+Example recovery for an HP EliteDesk that previously advertised `3c:52:82:63:12:63`: set that address in the Configure form, save, and press Wake Batocera. This does not guarantee wake from a shutdown state; firmware and the network must still permit WoL. Never edit `core.config_entries` manually.
+
 ## Planned
 Artwork proxy and graphical library card; launch and stop controls; Wake-on-LAN; SSH power management.
 
