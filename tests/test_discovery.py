@@ -127,6 +127,10 @@ naming = importlib.util.module_from_spec(naming_spec)
 sys.modules[naming_spec.name] = naming
 naming_spec.loader.exec_module(naming)
 
+power = module("batocera_discovery_tests.power")
+power.DEFAULT_SSH_KEY = "/config/.ssh/id_ed25519"
+power.DEFAULT_KNOWN_HOSTS = "/config/.ssh/known_hosts"
+
 wol_source = (
     Path(__file__).resolve().parents[1]
     / "custom_components" / "batocera" / "wol.py"
